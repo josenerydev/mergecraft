@@ -3,12 +3,11 @@ import tempfile
 import subprocess
 import pathspec
 import argparse
+import re
 
 
 def find_subdir(start_dir, subdir_name):
-    """
-    Recursively search for a subdirectory within the start directory.
-    """
+    """Recursively search for a subdirectory within the start directory."""
     for dirpath, dirnames, filenames in os.walk(start_dir):
         if os.path.basename(dirpath) == subdir_name:
             return dirpath
@@ -17,8 +16,9 @@ def find_subdir(start_dir, subdir_name):
 
 def read_file_content(filepath):
     """Read the content of a file."""
-    with open(filepath, "r", encoding="utf-8") as file:
-        content = file.read()
+    with open(filepath, "rb") as file:
+        content_bytes = file.read()
+        content = content_bytes.decode("utf-8", errors="replace")
         return content if content.strip() else "(empty)"
 
 
@@ -47,18 +47,22 @@ def main():
         "-e", "--extensions", nargs="+", default=[".py"], help=ext_help.strip()
     )
 
-    # Add argument for specifying the path
     parser.add_argument(
         "--path",
         default=".",
         help="Specify the root path to start searching for files. Defaults to current directory.",
     )
+
+    parser.add_argument(
+        "--filter",
+        help="A regex pattern to filter files based on their content. Only files matching this pattern will be included.",
+    )
+
     args = parser.parse_args()
 
     # Normalize the path and check if it exists
     current_dir = os.getcwd()
     full_path = os.path.normpath(os.path.join(current_dir, args.path))
-
     if not os.path.exists(full_path):
         # If the path doesn't exist directly, try to find it recursively
         full_path = find_subdir(current_dir, args.path)
@@ -73,56 +77,46 @@ def main():
     with tempfile.NamedTemporaryFile(prefix="mergecraft_", delete=False) as temp_file:
         temp_path = temp_file.name
 
-    # Check if .gitignore exists and load its rules
-    gitignore_spec = None
-    if os.path.exists(".gitignore"):
-        gitignore_spec = load_gitignore()
+    gitignore_spec = load_gitignore() if os.path.exists(".gitignore") else None
 
-    # Create a list to store the names of the read files
     read_files = []
+    total_line_count = 0
 
-    # Iterate over the files starting from the full path
     for dirpath, dirnames, filenames in os.walk(full_path):
         for filename in filenames:
             filepath = os.path.join(dirpath, filename)
-            relative_filepath = os.path.relpath(
-                filepath
-            )  # get path relative to current directory
+            relative_filepath = os.path.relpath(filepath)
 
             # Check against gitignore rules
             if gitignore_spec and gitignore_spec.match_file(relative_filepath):
                 continue  # Skip this file
 
-            # If the user has specified a path, consider all files inside that path
-            # Otherwise, use the extensions filter
-            if args.path != "." or any(
-                filename.endswith(ext) for ext in args.extensions
-            ):
-                # Add the file to the list of read files
-                read_files.append(relative_filepath)
+            content = read_file_content(filepath)
 
-                content = read_file_content(filepath)
-                with open(temp_path, "a", encoding="utf-8") as temp_file:
-                    temp_file.write(f"``` {filename}\n{content}\n```\n\n")
+            # Apply the content filter, if provided
+            if args.filter and not re.search(args.filter, content):
+                continue
+
+            line_count = len(content.split("\n"))
+            total_line_count += line_count
+            read_files.append((relative_filepath, line_count))
+
+            with open(temp_path, "a", encoding="utf-8") as temp_file:
+                temp_file.write(f"``` {filename}\n{content}\n```\n\n")
 
     print("Editing in VS Code. Close to continue.")
-
-    # Open the temporary file in VS Code
     subprocess.run(["cmd", "/c", "code", "-w", temp_path])
 
-    # Check if no files were read
     if not read_files:
         print("No files were read!")
         return
 
     print("Editing completed. Continuing script execution...")
 
-    # Print the list of read files
     print("\nFiles read:")
-    for file in read_files:
-        print(file)
+    for file_path, line_count in read_files:
+        print(f"{file_path}: {line_count} lines")
 
-    # Remove the temporary file
     os.remove(temp_path)
 
 
