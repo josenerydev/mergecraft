@@ -5,6 +5,16 @@ import pathspec
 import argparse
 
 
+def find_subdir(start_dir, subdir_name):
+    """
+    Recursively search for a subdirectory within the start directory.
+    """
+    for dirpath, dirnames, filenames in os.walk(start_dir):
+        if os.path.basename(dirpath) == subdir_name:
+            return dirpath
+    return None
+
+
 def read_file_content(filepath):
     """Read the content of a file."""
     with open(filepath, "r", encoding="utf-8") as file:
@@ -21,7 +31,10 @@ def load_gitignore():
 
 def main():
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description="Merge files into a temporary file and open in VS Code.")
+    parser = argparse.ArgumentParser(
+        description="Merge files into a temporary file and open in VS Code."
+    )
+
     ext_help = """
     Specify the file extensions to process. 
     You can provide multiple extensions by separating them with spaces.
@@ -30,10 +43,33 @@ def main():
         This will process both Python and TXT files.
     If not provided, the tool defaults to processing .py files.
     """
-    parser.add_argument("-e", "--extensions", nargs='+', default=['.py'], help=ext_help.strip())
+    parser.add_argument(
+        "-e", "--extensions", nargs="+", default=[".py"], help=ext_help.strip()
+    )
+
+    # Add argument for specifying the path
+    parser.add_argument(
+        "--path",
+        default=".",
+        help="Specify the root path to start searching for files. Defaults to current directory.",
+    )
     args = parser.parse_args()
 
-    # Create a temporary file with a meaningful prefix (without an extension)
+    # Normalize the path and check if it exists
+    current_dir = os.getcwd()
+    full_path = os.path.normpath(os.path.join(current_dir, args.path))
+
+    if not os.path.exists(full_path):
+        # If the path doesn't exist directly, try to find it recursively
+        full_path = find_subdir(current_dir, args.path)
+
+    if not full_path or not os.path.exists(full_path):
+        print(
+            f"Error: The specified path '{args.path}' was not found in '{current_dir}' or its subdirectories!"
+        )
+        return
+
+    # Create a temporary file with a meaningful prefix
     with tempfile.NamedTemporaryFile(prefix="mergecraft_", delete=False) as temp_file:
         temp_path = temp_file.name
 
@@ -45,18 +81,23 @@ def main():
     # Create a list to store the names of the read files
     read_files = []
 
-    # Iterate over the files in the current directory and its subdirectories
-    for dirpath, dirnames, filenames in os.walk("."):
+    # Iterate over the files starting from the full path
+    for dirpath, dirnames, filenames in os.walk(full_path):
         for filename in filenames:
             filepath = os.path.join(dirpath, filename)
-            relative_filepath = os.path.relpath(filepath)  # get path relative to current directory
+            relative_filepath = os.path.relpath(
+                filepath
+            )  # get path relative to current directory
 
             # Check against gitignore rules
             if gitignore_spec and gitignore_spec.match_file(relative_filepath):
                 continue  # Skip this file
 
-            # Check if file matches specified extensions
-            if any(filename.endswith(ext) for ext in args.extensions):
+            # If the user has specified a path, consider all files inside that path
+            # Otherwise, use the extensions filter
+            if args.path != "." or any(
+                filename.endswith(ext) for ext in args.extensions
+            ):
                 # Add the file to the list of read files
                 read_files.append(relative_filepath)
 
