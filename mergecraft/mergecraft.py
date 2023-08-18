@@ -55,7 +55,7 @@ def main():
 
     parser.add_argument(
         "--filter",
-        help="A regex pattern to filter files based on their content. Only files matching this pattern will be included.",
+        help="A regex pattern to filter files based on their content or name. Only files matching this pattern will be included.",
     )
 
     args = parser.parse_args()
@@ -91,10 +91,11 @@ def main():
             if gitignore_spec and gitignore_spec.match_file(relative_filepath):
                 continue  # Skip this file
 
+            # Apply the filter to both filename and content
             content = read_file_content(filepath)
-
-            # Apply the content filter, if provided
-            if args.filter and not re.search(args.filter, content):
+            if args.filter and not (
+                re.search(args.filter, content) or re.search(args.filter, filename)
+            ):
                 continue
 
             line_count = len(content.split("\n"))
