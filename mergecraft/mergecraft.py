@@ -22,8 +22,6 @@ def load_gitignore():
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Merge files into a temporary file and open in VS Code.")
-    
-    # Detailed help message for the extensions argument
     ext_help = """
     Specify the file extensions to process. 
     You can provide multiple extensions by separating them with spaces.
@@ -32,13 +30,12 @@ def main():
         This will process both Python and TXT files.
     If not provided, the tool defaults to processing .py files.
     """
-    
     parser.add_argument("-e", "--extensions", nargs='+', default=['.py'], help=ext_help.strip())
     args = parser.parse_args()
 
-    # Create a temporary file
-    temp_fd, temp_path = tempfile.mkstemp(suffix=".md")
-    os.close(temp_fd)  # Close the file descriptor, we'll use the path directly
+    # Create a temporary file with a meaningful prefix (without an extension)
+    with tempfile.NamedTemporaryFile(prefix="mergecraft_", delete=False) as temp_file:
+        temp_path = temp_file.name
 
     # Check if .gitignore exists and load its rules
     gitignore_spec = None
