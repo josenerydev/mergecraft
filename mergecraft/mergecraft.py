@@ -11,11 +11,11 @@ def find_subdir(start_dir, subdir_name):
     for dirpath, dirnames, filenames in os.walk(start_dir):
         for dirname in dirnames:
             if subdir_name in dirname:
-                print(f"Found directory: {os.path.join(dirpath, dirname)}")  # Debug
+                # print(f"Found directory: {os.path.join(dirpath, dirname)}")  # Debug
                 return os.path.join(dirpath, dirname)
-    print(
-        f"Directory '{subdir_name}' not found from starting point: {start_dir}"
-    )  # Debug
+    # print(
+    #     f"Directory '{subdir_name}' not found from starting point: {start_dir}"
+    # )  # Debug
     return None
 
 
@@ -112,11 +112,11 @@ def main():
 
     for dirpath, dirnames, filenames in os.walk(full_path):
         # Debug
-        print(f"Checking directory: {dirpath}")
+        # print(f"Checking directory: {dirpath}")
 
         # Ignore the .git directory
         if ".git" in dirpath:
-            print("Skipping .git directory")  # Debug
+            # print("Skipping .git directory")  # Debug
             continue
 
         for filename in filenames:
@@ -127,11 +127,11 @@ def main():
             filepath = os.path.join(dirpath, filename)
             relative_filepath = os.path.relpath(filepath)
 
-            print(f"Checking file: {filepath}")  # Debug
+            # print(f"Checking file: {filepath}")  # Debug
 
             # Check against gitignore rules
             if gitignore_spec and gitignore_spec.match_file(relative_filepath):
-                print(f"File {filepath} is ignored due to .gitignore rules.")  # Debug
+                # print(f"File {filepath} is ignored due to .gitignore rules.")  # Debug
                 continue  # Skip this file
 
             # Apply the filter to both filename and content
@@ -139,7 +139,7 @@ def main():
             if args.filter and not (
                 re.search(args.filter, content) or re.search(args.filter, filename)
             ):
-                print(f"File {filepath} does not match the provided filter.")  # Debug
+                # print(f"File {filepath} does not match the provided filter.")  # Debug
                 continue
 
             line_count = len(content.split("\n"))
