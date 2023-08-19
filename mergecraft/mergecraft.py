@@ -69,6 +69,8 @@ def main():
     # Se --path for fornecido e --extensions não for, leremos todos os arquivos
     if args.path != "." and args.extensions is None:
         args.extensions = [""]
+    elif args.filter != "" and args.extensions is None:
+        args.extensions = [""]
     elif (
         args.extensions is None
     ):  # Se --extensions não for fornecido, vamos usar .py como padrão
