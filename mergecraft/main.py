@@ -1,8 +1,8 @@
 import os
 import tempfile
 import subprocess
+import fnmatch
 from .file_utils import find_subdir, read_file_content
-from .gitignore import load_gitignore
 from .cli_parser import parse_arguments
 from .constants import DEFAULT_EXTENSIONS
 import re
@@ -34,8 +34,7 @@ def main():
 
     # Criação de arquivo temporário para a concatenação dos conteúdos
     temp_path = tempfile.mktemp(prefix="mergecraft_", suffix=".txt")
-    gitignore_spec = load_gitignore() if os.path.exists(".gitignore") else None
-    read_files, total_line_count = process_files(full_path, args, gitignore_spec, temp_path)
+    read_files, total_line_count = process_files(full_path, args, temp_path)
 
     # Abertura do arquivo temporário no VS Code
     edit_in_vscode(temp_path)
@@ -44,12 +43,12 @@ def main():
     print_summary(read_files, total_line_count)
     os.remove(temp_path)
 
-def process_files(full_path, args, gitignore_spec, temp_path):
+def process_files(full_path, args, temp_path):
     read_files = []
     total_line_count = 0
     for dirpath, dirnames, filenames in os.walk(full_path):
         for filename in filenames:
-            if not should_include_file(filename, args.extensions, gitignore_spec, dirpath):
+            if not should_include_file(filename, args.extensions, dirpath):
                 continue
             filepath = os.path.join(dirpath, filename)
             content = read_file_content(filepath)
@@ -60,9 +59,18 @@ def process_files(full_path, args, gitignore_spec, temp_path):
             total_line_count += line_count
     return read_files, total_line_count
 
-def should_include_file(filename, extensions, gitignore_spec, dirpath):
-    return (filename.endswith(tuple(extensions)) and
-            (not gitignore_spec or not gitignore_spec.match_file(os.path.relpath(dirpath))))
+def should_include_file(filename, extensions, dirpath):
+    if os.path.exists(".gitignore"):
+        with open(".gitignore", "r") as f:
+            gitignore_content = f.read().splitlines()
+        for pattern in gitignore_content:
+            if pattern.startswith("#") or not pattern.strip():
+                continue
+            if pattern.startswith("/"):
+                pattern = pattern[1:]
+            if fnmatch.fnmatch(filename, pattern):
+                return False
+    return filename.endswith(tuple(extensions))
 
 def matches_filter(content, filename, filter_regex):
     return re.search(filter_regex, content) or re.search(filter_regex, filename)
@@ -75,7 +83,8 @@ def write_to_temp_file(filepath, filename, content, temp_path):
 
 def edit_in_vscode(temp_path):
     print("Editing in VS Code. Close to continue.")
-    subprocess.run(["code", "-w", temp_path])
+    code_path = r'C:\Program Files\Microsoft VS Code\bin\code.exe'
+    subprocess.run([code_path, '-w', temp_path])
 
 def print_summary(read_files, total_line_count):
     if read_files:

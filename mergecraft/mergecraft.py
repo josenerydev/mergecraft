@@ -120,6 +120,10 @@ def main():
             continue
 
         for filename in filenames:
+            # Check if filename is .gitignore
+            if filename in [".gitignore", "LICENSE", "README.md", "__init__.py"]:
+                continue
+
             # Filter by extensions
             if not filename.endswith(tuple(args.extensions)):
                 continue
@@ -127,12 +131,10 @@ def main():
             filepath = os.path.join(dirpath, filename)
             relative_filepath = os.path.relpath(filepath)
 
-            # print(f"Checking file: {filepath}")  # Debug
-
             # Check against gitignore rules
             if gitignore_spec and gitignore_spec.match_file(relative_filepath):
-                # print(f"File {filepath} is ignored due to .gitignore rules.")  # Debug
-                continue  # Skip this file
+                # print(f"File {filepath} is ignored due to .gitignore rules.")
+                continue
 
             # Apply the filter to both filename and content
             content = read_file_content(filepath)
@@ -146,8 +148,11 @@ def main():
             total_line_count += line_count
             read_files.append((relative_filepath, line_count))
 
+            with open(filepath, "r", encoding="utf-8") as original_file:
+                content = original_file.read()
+
             with open(temp_path, "a", encoding="utf-8") as temp_file:
-                temp_file.write(f"``` {filename}\n{content}\n```\n\n")
+                temp_file.write(f"# {filepath}\n{content}\n")
 
     print("Editing in VS Code. Close to continue.")
     subprocess.run(["cmd", "/c", "code", "-w", temp_path])
