@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="mergecraft",
-    version="0.0.1",
+    version="0.0.3",
     description="A command-line tool to merge files into a temporary file and open in VS Code.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
