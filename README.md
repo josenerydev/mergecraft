@@ -27,6 +27,14 @@ To set up the `mergecraft` tool, you can now install it directly from PyPI:
 pip install mergecraft
 ```
 
+### ⬆️ Upgrading mergecraft
+
+To upgrade to the latest version of `mergecraft`, you can use the following command:
+
+```bash
+pip install --upgrade mergecraft
+```
+
 ### 📦 Install Locally
 
 Alternatively, if you need to install from the source for the latest features or development purposes:
