@@ -1,5 +1,6 @@
 # mergecraft 🚀
 
+[![Upload Python Package](https://github.com/josenerydev/mergecraft/actions/workflows/python-publish.yml/badge.svg)](https://github.com/josenerydev/mergecraft/actions/workflows/python-publish.yml)
 ![GitHub](https://img.shields.io/github/license/josenerydev/mergecraft)
 ![PyPI](https://img.shields.io/pypi/v/mergecraft)
 ![Python Version](https://img.shields.io/pypi/pyversions/mergecraft)
