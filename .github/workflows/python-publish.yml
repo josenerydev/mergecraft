@@ -1,4 +1,4 @@
-name: Upload Python Package
+name: Publish Python Package with OIDC
 
 on:
   release:
@@ -9,23 +9,22 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  build-and-publish:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
         python-version: '3.x'
-    - name: Install dependencies
+    - name: Build package
       run: |
         python -m pip install --upgrade pip
-        pip install build twine
-    - name: Build package
-      run: python -m build
-    - name: Publish package
+        pip install build
+        python -m build
+    - name: Publish package to PyPI
       uses: pypa/gh-action-pypi-publish@latest
       with:
         user: __token__
-        password: ${{ secrets.PYPI_TOKEN }}
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        oidc_token: ${{ steps.oidc.outputs.token }}
