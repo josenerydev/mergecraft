@@ -120,6 +120,9 @@ def main():
             continue
 
         for filename in filenames:
+            if filename.startswith("_"):
+                continue
+
             # Check if filename is .gitignore
             if filename in [".gitignore", "LICENSE", "README.md", "__init__.py"]:
                 continue
