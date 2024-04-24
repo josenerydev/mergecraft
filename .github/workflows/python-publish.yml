@@ -1,35 +1,38 @@
-# .github/workflows/publish.yml
-name: Trusted Publish to PyPI
+name: Upload Python Package
 
 on:
-  push:
-    tags:
-      - '*'
+  release:
+    types: [published]
 
 permissions:
-  id-token: write  # Essential for OIDC
+  id-token: write
+  contents: read
 
 jobs:
-  publish:
+  pypi-publish:
+    name: Upload release to PyPI
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/mergecraft/  # Make sure this URL is correct
+      url: https://pypi.org/p/mergecraft
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.8'
+      - uses: actions/checkout@v3
 
-    - name: Install build tools
-      run: |
-        python -m pip install --upgrade pip
-        pip install build
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
 
-    - name: Build package
-      run: |
-        python -m build
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build setuptools wheel twine
 
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Build package
+        run: python -m build
+
+      - name: Verify package
+        run: twine check dist/*
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
