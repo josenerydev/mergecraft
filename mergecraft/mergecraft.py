@@ -7,13 +7,26 @@ import re
 import yaml
 
 
+def default_config():
+    """Return the default configuration."""
+    return {
+        "extensions": [".py", ".txt"],
+        "skip_files": [".gitignore", "LICENSE", "README.md", "__init__.py", "_*"],
+        "skip_directories": ["bin", "obj", ".git"],
+    }
+
+
+def save_default_config(config_path):
+    """Save the default configuration to a YAML file."""
+    with open(config_path, "w") as file:
+        yaml.dump(default_config(), file, default_flow_style=False)
+
+
 def load_config():
-    """Load configuration from a YAML file."""
+    """Load configuration from a YAML file or create it if it doesn't exist."""
     config_path = os.path.join(os.getcwd(), "mergecraft.config.yml")
     if not os.path.exists(config_path):
-        raise FileNotFoundError(
-            "Could not find the configuration file 'mergecraft.config.yml'."
-        )
+        save_default_config(config_path)
     with open(config_path, "r") as file:
         return yaml.safe_load(file)
 
@@ -85,6 +98,10 @@ def main():
         help="A regex pattern to filter files based on their content or name.",
     )
     args = parser.parse_args()
+
+    if args.extensions is None:
+        print("No file extensions provided; no files will be processed.")
+        return
 
     full_path = os.path.normpath(os.path.join(os.getcwd(), args.path))
     if not os.path.exists(full_path):
