@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="mergecraft",
-    version="0.0.8",
+    version="0.0.9",
     description="A command-line tool to merge files into a temporary file and open in VS Code. Designed to support AI-driven development.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -10,7 +10,7 @@ setup(
     author_email="josenerydev@gmail.com",
     url="https://github.com/josenerydev/mergecraft",
     packages=find_packages(),
-    install_requires=["pathspec"],
+    install_requires=["pathspec","PyYAML"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
