@@ -4,6 +4,21 @@ import subprocess
 import pathspec
 import argparse
 import re
+import yaml
+
+
+def load_config():
+    """Load configuration from a YAML file."""
+    config_path = os.path.join(os.getcwd(), "mergecraft.config.yml")
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(
+            "Could not find the configuration file 'mergecraft.config.yml'."
+        )
+    with open(config_path, "r") as file:
+        return yaml.safe_load(file)
+
+
+config = load_config()
 
 
 def find_subdir(start_dir, subdir_name):
@@ -11,11 +26,7 @@ def find_subdir(start_dir, subdir_name):
     for dirpath, dirnames, filenames in os.walk(start_dir):
         for dirname in dirnames:
             if subdir_name in dirname:
-                # print(f"Found directory: {os.path.join(dirpath, dirname)}")  # Debug
                 return os.path.join(dirpath, dirname)
-    # print(
-    #     f"Directory '{subdir_name}' not found from starting point: {start_dir}"
-    # )  # Debug
     return None
 
 
@@ -29,22 +40,31 @@ def read_file_content(filepath):
 
 def load_gitignore():
     """Load the .gitignore specifications."""
-    with open(".gitignore", "r") as f:
-        gitignore = f.readlines()
-    return pathspec.PathSpec.from_lines("gitwildmatch", gitignore)
+    gitignore_path = os.path.join(os.getcwd(), ".gitignore")
+    if os.path.exists(gitignore_path):
+        with open(gitignore_path, "r") as f:
+            gitignore = f.readlines()
+        return pathspec.PathSpec.from_lines("gitwildmatch", gitignore)
+    return None
 
 
-def should_skip_directory(dirpath):
-    """Return True if the directory should be skipped based on certain criteria."""
-    skip_directories = ["bin", "obj", ".git"]
-    for skip_dir in skip_directories:
-        if skip_dir in dirpath.split(os.path.sep):
+def should_skip_filename(filename):
+    """Check if file should be skipped based on config."""
+    for pattern in config["skip_files"]:
+        if re.match(pattern.replace("*", ".*"), filename):
             return True
     return False
 
 
+def should_skip_directory(dirpath):
+    """Return True if the directory should be skipped based on config."""
+    return any(
+        skip_dir in dirpath.split(os.path.sep)
+        for skip_dir in config["skip_directories"]
+    )
+
+
 def main():
-    # Parse command-line arguments
     parser = argparse.ArgumentParser(
         description="Merge files into a temporary file and open in VS Code."
     )
@@ -52,7 +72,7 @@ def main():
         "-e",
         "--extensions",
         nargs="+",
-        default=None,  # Default para None, vamos tratar isso mais adiante
+        default=config.get("extensions", [".py"]),
         help="Specify the file extensions to process.",
     )
     parser.add_argument(
@@ -62,100 +82,57 @@ def main():
     )
     parser.add_argument(
         "--filter",
-        help="A regex pattern to filter files based on their content or name. Only files matching this pattern will be included.",
+        help="A regex pattern to filter files based on their content or name.",
     )
     args = parser.parse_args()
 
-    # Se --path for fornecido e --extensions não for, leremos todos os arquivos
-    if args.path != "." and args.extensions is None:
-        args.extensions = [""]
-    elif args.filter != "" and args.extensions is None:
-        args.extensions = [""]
-    elif (
-        args.extensions is None
-    ):  # Se --extensions não for fornecido, vamos usar .py como padrão
-        args.extensions = [".py"]
-
-    # Validate Regex
-    if args.filter:
-        try:
-            re.compile(args.filter)
-        except re.error:
-            print("Error: Invalid regular expression provided!")
-            return
-
-    # If no extensions are explicitly provided, default to .py
-    if args.extensions is None:
-        args.extensions = [".py"]
-
-    # Normalize the path and check if it exists
-    current_dir = os.getcwd()
-    full_path = os.path.normpath(os.path.join(current_dir, args.path))
+    full_path = os.path.normpath(os.path.join(os.getcwd(), args.path))
     if not os.path.exists(full_path):
-        # If the path doesn't exist directly, try to find it recursively
-        full_path = find_subdir(current_dir, args.path)
+        full_path = find_subdir(os.getcwd(), args.path)
 
     if not full_path or not os.path.exists(full_path):
-        print(
-            f"Error: The specified path '{args.path}' was not found in '{current_dir}' or its subdirectories!"
-        )
+        print(f"Error: The specified path '{args.path}' was not found.")
         return
 
-    # Create a temporary file with a meaningful prefix
     with tempfile.NamedTemporaryFile(prefix="mergecraft_", delete=False) as temp_file:
         temp_path = temp_file.name
 
-    gitignore_spec = load_gitignore() if os.path.exists(".gitignore") else None
-
+    gitignore_spec = load_gitignore()
     read_files = []
     total_line_count = 0
 
     for dirpath, dirnames, filenames in os.walk(full_path):
-        # Debug
-        # print(f"Checking directory: {dirpath}")
-
-        # Ignore the .git directory
-        if ".git" in dirpath:
-            # print("Skipping .git directory")  # Debug
+        if ".git" in dirpath or should_skip_directory(dirpath):
             continue
 
         for filename in filenames:
-            if filename.startswith("_"):
+            if should_skip_filename(filename):
                 continue
 
-            # Check if filename is .gitignore
-            if filename in [".gitignore", "LICENSE", "README.md", "__init__.py"]:
-                continue
-
-            # Filter by extensions
-            if not filename.endswith(tuple(args.extensions)):
+            if not any(filename.endswith(ext) for ext in args.extensions):
                 continue
 
             filepath = os.path.join(dirpath, filename)
-            relative_filepath = os.path.relpath(filepath)
-
-            # Check against gitignore rules
-            if gitignore_spec and gitignore_spec.match_file(relative_filepath):
-                # print(f"File {filepath} is ignored due to .gitignore rules.")
+            if gitignore_spec and gitignore_spec.match_file(
+                os.path.relpath(filepath, start=os.getcwd())
+            ):
                 continue
 
-            # Apply the filter to both filename and content
             content = read_file_content(filepath)
             if args.filter and not (
                 re.search(args.filter, content) or re.search(args.filter, filename)
             ):
-                # print(f"File {filepath} does not match the provided filter.")  # Debug
                 continue
 
             line_count = len(content.split("\n"))
             total_line_count += line_count
-            read_files.append((relative_filepath, line_count))
+            read_files.append((filepath, line_count))
 
             with open(filepath, "r", encoding="utf-8") as original_file:
-                content = original_file.read()
+                file_content = original_file.read()
 
             with open(temp_path, "a", encoding="utf-8") as temp_file:
-                temp_file.write(f"# {filepath}\n{content}\n")
+                temp_file.write(f"# {filepath}\n{file_content}\n")
 
     print("Editing in VS Code. Close to continue.")
     subprocess.run(["cmd", "/c", "code", "-w", temp_path])
